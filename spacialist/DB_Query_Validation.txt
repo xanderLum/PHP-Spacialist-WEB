@@ -1,0 +1,69 @@
+
+															
+=================================================================
+GET STAFF TO SERVICE WHO ARE BLOCKED AT SELECTED TIME AND DATE OF CLIENT
+=================================================================
+SELECT sd.staff_service_id,st.firstname, sd.start_time, sd.end_time, s.duration, s.service_name FROM staff_schedule sd 
+inner join staff_service ss on sd.staff_service_id=ss.staff_service_id
+inner join staff st on st.staff_id=ss.staff_id
+inner join service s on ss.service_id= s.service_id
+inner join business b on b.bus_id=st.bus_id
+                                    WHERE   (
+										(TIME("08:00:00") < sd.start_time AND TIME("08:00:00")+s.duration < sd.end_time AND  TIME("08:00:00")+s.duration > sd.start_time)
+										OR (TIME("08:00:00") >= sd.start_time AND TIME("08:00:00")+s.duration <= sd.end_time)
+										OR (TIME("08:00:00") > sd.start_time AND TIME("08:00:00")+s.duration > sd.end_time AND TIME("09:00:00") < sd.end_time)
+										)
+                                    
+                                    AND sd.sched_date = date("2019-09-23") AND
+                                    b.bus_id=91
+=================================================================
+END
+=================================================================
+					
+					
+=================================================================
+AVAILABLE STAFF TO SERVICE FOR SELECTED DATE AND TIME BY CLIENT
+SUPER FILTERED QUERY
+=================================================================
+SELECT bus.bus_id, bus.bus_name, ss.staff_service_id, s.service_id, s.service_name, s.service_desc, s.duration, bsp.price, staff_service_avail.staff_id, st.firstname 
+            from business bus
+            INNER JOIN bus_service_price bsp
+            ON bsp.bus_id=bus.bus_id
+            INNER JOIN staff st
+            ON bus.bus_id=st.bus_id
+            INNER JOIN staff_service ss
+            ON st.staff_id=ss.staff_id
+            INNER JOIN service s
+            ON ss.service_id=s.service_id,
+            (SELECT ss.service_id, ss.staff_service_id, ss.staff_id FROM staff_service ss, service s
+                    WHERE 
+                        s.service_id = ss.service_id
+                    AND
+                        ss.staff_id NOT IN (
+                        SELECT sub_ss.staff_id from staff_service sub_ss
+                            WHERE 
+                                sub_ss.service_id=s.service_id
+                                AND
+                                    sub_ss.staff_id
+                                IN (SELECT sub_sub_ss.staff_id FROM staff_service sub_sub_ss
+                                WHERE 
+                                    sub_sub_ss.staff_service_id IN (SELECT sd.staff_service_id FROM staff_schedule sd
+                                    WHERE   (
+										(TIME("08:00:00") < sd.start_time AND TIME("08:00:00")+s.duration < sd.end_time AND  TIME("08:00:00")+s.duration > sd.start_time)
+										OR (TIME("08:00:00") >= sd.start_time AND TIME("08:00:00")+s.duration <= sd.end_time)
+										OR (TIME("08:00:00") <= sd.start_time AND TIME("08:00:00")+s.duration >= sd.end_time)
+										OR (TIME("08:00:00") > sd.start_time AND TIME("08:00:00")+s.duration > sd.end_time AND TIME("08:00:00") < sd.end_time)
+										)
+                                    AND sd.sched_date = date("2019-09-23")
+									)))) staff_service_avail
+            WHERE 
+            staff_service_avail.staff_id=st.staff_id
+            AND staff_service_avail.service_id=s.service_id
+            AND bus.bus_id=91
+            AND bsp.service_id=s.service_id
+			GROUP BY  bus.bus_id, ss.staff_service_id, s.service_id, staff_service_avail.staff_id, st.staff_id
+            ORDER BY staff_service_avail.staff_id ASC
+			
+=================================================================
+END
+=================================================================
